@@ -1,0 +1,36 @@
+#!/bin/bash
+
+# Make sure we're in the vagrant user's ~/code folder.
+cd /home/vagrant/code
+
+# Get the first argument given to this script.
+# We assume it is the name of the project.
+PROJECT=$1
+
+# Create the user and database in pgsql.
+# I know how to do this in psql, but 
+# can we do it with commands from the command line?
+sudo -u postgres psql -c "CREATE USER $PROJECT WITH PASSWORD '$PROJECT';"
+sudo -u postgres psql -c "CREATE DATABASE $PROJECT WITH OWNER $PROJECT;"
+
+# When users run `yesod init`, they type four things:
+# a) The name of the project (which will be $PROJECT).
+# b) The `Enter` key (represented as \n).
+# c) The letter `p` (to select postgres when `yesod init` asks which db).
+# d) The `Enter` key again (\n)
+
+# Let's print them out in order, and then let's pipe
+# that into the `yesod init` command:
+printf %s%s%s%s $"$PROJECT" $'\n' $'p' $'\n' | /home/vagrant/.cabal/bin/yesod init
+
+# Now that we have a scaffolded site, we need to compile
+# the executable that runs the site. To do that, we just
+# cd into the folder and run `cabal install`.
+cd /home/vagrant/code/$PROJECT
+cabal install
+
+# Display a message.
+echo "Site built and compiled."
+
+# Exit cleanly.
+exit 0

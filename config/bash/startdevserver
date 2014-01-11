@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# Make sure we're in the vagrant user's ~/code folder.
+cd /home/vagrant/code
+
+# Get the first argument given to this script.
+# We assume it is the name of the project.
+PROJECT=$1
+
+# Change into the project directory.
+cd $PROJECT
+
+# Now run yesod deel
+sudo -u vagrant /home/vagrant/.cabal/bin/yesod devel
+
+# Exit cleanly.
+exit 0

@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# Add the keys.
+sudo -u vagrant heroku keys:add
+
+# Exit cleanly 0

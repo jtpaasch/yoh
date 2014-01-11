@@ -1,0 +1,62 @@
+#!/bin/bash
+
+############################################################
+#
+#
+#
+#    THE YOH PROJECT
+#    --------------------------------------------------
+#
+#    Copyright 2013 JT Paasch
+#    License MIT <http://opensource.org/licenses/MIT>
+#
+#
+############################################################
+
+# Update apt-get.
+sudo apt-get update
+
+# Install git.
+sudo apt-get install -y git
+
+# Install postgres
+sudo apt-get install -y postgresql
+sudo apt-get install -y libpq-dev
+
+# Install the haskell platform.
+sudo apt-get install -y haskell-platform
+
+# Update cabal (haskell's package manager).
+# But run as the vagrant user, not the root user.
+# That ensures that cabal installs programs 
+# in /home/vagrant/.cabal/bin, not /root/.cabal/bin.
+su vagrant -c "cabal update"
+
+# Install the yesod platform. 
+# Use the --force-reinstalls flag to force it 
+# to update anything already installed.
+# If this flag is not set, cabal will NOT install
+# anything. Instead, it will simply tell you which
+# packages are already installed, and say you need
+# to use --force-reinstalls if you want to alter them.
+su vagrant -c "cabal install yesod-platform --force-reinstalls."
+
+# Install yesod-bin (the command line tool for yesod).
+su vagrant -c "cabal install yesod-bin"
+
+# Cabal installs things in ~/.cabal/bin.
+# Add that to the system PATH.
+echo '' >> /home/vagrant/.bashrc
+echo '# Adding a cabal folder to the PATH' >> /home/vagrant/.bashrc
+echo 'export PATH="/home/vagrant/.cabal/bin:$PATH"' >> /home/vagrant/.bashrc
+echo '' >> /home/vagrant/.bashrc
+export PATH="/home/vagrant/.cabal/bin:$PATH"
+
+# Print out the yesod version (should be 1.2 or higher).
+echo `yesod version`
+
+# Leave a message.
+echo "Finished provisioning"
+
+# Exit cleanly.
+exit 0

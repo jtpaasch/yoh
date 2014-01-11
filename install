@@ -1,0 +1,31 @@
+#!/bin/bash
+
+############################################################
+#
+#
+#
+#    THE YOH PROJECT
+#    --------------------------------------------------
+#
+#    Copyright 2013 JT Paasch
+#    License MIT <http://opensource.org/licenses/MIT>
+#
+#
+############################################################
+
+
+# Print a message.
+echo "Installing..."
+echo "-- install yoh /usr/local/bin"
+sudo install yoh /usr/local/bin
+
+# Create a .yoh directory in the home folder,
+# If it doesn't exist already.
+if [ ! -d $HOME/.yoh ]; then
+    echo "-- copying config to $HOME/.yoh...";
+    mkdir $HOME/.yoh
+fi
+sudo cp -r config $HOME/.yoh/
+echo "-- done"
+
+exit 0

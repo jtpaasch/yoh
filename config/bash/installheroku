@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# Get the heroku toolbelt.
+sudo -u vagrant wget -qO- https://toolbelt.heroku.com/install-ubuntu.sh | sh
+
+# Exit cleanly.
+exit 0

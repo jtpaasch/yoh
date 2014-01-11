@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# The project name will be the first argument.
+PROJECT=$1
+
+# Make sure we're in the project folder.
+cd /home/vagrant/code/$PROJECT
+
+# Put the repo under version control.
+git init . && git add . && git commit -m "First commit."
+
+# Convert the project to a heroku app, using the haskell buildpack.
+heroku create --buildpack=https://github.com/puffnfresh/heroku-buildpack-haskell
+
+# Add the postgres heroku add-on, noting what it spits out.
+POSTGRES = `heroku addons:add heroku-postgresql:dev`
+
+# Promote the database.
+# heroku pg:promote $POSTGRES
+
+

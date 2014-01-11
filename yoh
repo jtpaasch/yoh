@@ -1,0 +1,603 @@
+#!/usr/bin/python
+
+############################################################
+#
+#
+#
+#    THE YOH PROJECT
+#    --------------------------------------------------
+#
+#    Copyright 2013 JT Paasch
+#    License MIT <http://opensource.org/licenses/MIT>
+#
+#
+############################################################
+
+
+import os
+import argparse
+import subprocess
+import shutil
+import getpass
+from   ConfigParser import SafeConfigParser
+
+
+
+class Settings:
+    """
+    A generic container for settings.
+
+    """
+
+    program = "yoh"
+    version = "0.1"
+    devbox_folder = ".devbox"
+    config_folder = devbox_folder + "/config"
+    yoh_config = config_folder + "/yoh.conf"
+
+    user_home = os.path.expanduser("~")
+    source_config = user_home + "/.yoh/config"
+    scripts_on_vm = "/home/vagrant/code/.devbox/config/bash/"
+
+    vagrant_key = user_home + "/.vagrant.d/insecure_private_key"
+    current_user = getpass.getuser()
+
+
+class Utilities:
+    """
+    A collection of utility methods.
+
+    """
+
+    @staticmethod
+    def log(message):
+        """
+        Prints a message to STDOUT.
+
+        """
+
+        # Trim the message.
+        result = message.strip()
+
+        # Print it to STDOUT.
+        print result
+
+
+    @staticmethod
+    def create_folder(folder):
+        """
+        Attempts to create a folder.
+        Returns True on success, False on failure.
+
+        """
+
+        try:
+            os.mkdir(folder, 0740)
+        except OSError:
+            return False
+        else:
+            return True
+
+
+    @staticmethod
+    def copy_folder(source, destination):
+        """
+        Attempts to copy a folder.
+        Returns True on success, False on failure.
+
+        """
+
+        try:
+            shutil.copytree(source, destination)
+        except (OSError, IOError):
+            return False
+        else:
+            return True
+
+
+    @staticmethod
+    def copy_file(source, destination):
+        """
+        Attempts to copy a folder.
+        Returns True on success, False on failure.
+
+        """
+
+        try:
+            shutil.copy(source, destination)
+        except (OSError, IOError):
+            return False
+        else:
+            return True
+
+
+class Heroku:
+    """
+    Handles heroku stuff.
+
+    """
+
+    # We'll store the config parser here:
+    config = None
+
+    # We'll store the user's heroku username and password here:
+    username = None
+    password = None
+
+    # Has heroku been configured? Assume false to begin with.
+    configured = False
+
+    @staticmethod
+    def setup():
+        """
+        Initialize heroku configuration variables.
+
+        """
+
+        # Stop the program if the folder isn't initialized yet.
+        Vagrant.stop_if_not_init()
+
+        # Get a config parser.
+        Heroku.config = SafeConfigParser()
+
+        # Read the config file.
+        Heroku.config.read(Settings.yoh_config)
+
+        # Is there a heroku section in the config file?
+        if Heroku.config.has_section('heroku'):
+
+            # Has heroku been configured for this project? 
+            ready = Heroku.config.getboolean('heroku', 'configured')
+            Heroku.configured = ready
+
+        # If Heroku is not configured, go ahead and configure it.
+        if not Heroku.configured:
+
+            # Get the user's credentials.
+            Heroku.ask_users_for_credentials()
+
+            # Install heroku on the VM.
+            # arguments = Heroku.username + ' ' + Heroku.password
+            # Vagrant.run_script_on_vm('installheroku', arguments)
+
+
+    @staticmethod
+    def ask_users_for_credentials():
+        """
+        Ask the users for credentials 
+        and store it in the config file. 
+
+        """
+
+        # Stop the program if the folder isn't initialized yet.
+        Vagrant.stop_if_not_init()
+
+        # Get a config parser.
+        Heroku.config = SafeConfigParser()
+
+        # Ask for the user's heroku username.
+        Heroku.username = raw_input("Enter your heroku username: ")
+
+        # Ask for the user's heroku password.
+        Heroku.password = getpass.getpass("Enter your heroku password: ")
+
+        # Save these as config values.
+        Heroku.config.set('heroku', 'username', Heroku.username)
+        Heroku.config.set('heroku', 'password', Heroku.password)
+
+        # Open the config file and save the new data to it.
+        config_file = open(Settings.yoh_config, 'w')
+        Heroku.config.write(config_file)
+        config_file.close()
+
+
+class Installer:
+    """
+    Handles installation of the VM.
+
+    """
+
+    @staticmethod
+    def init():
+        """ 
+        Initialize the installer.
+
+        """
+
+        # Check that all required programs are installed.
+        Installer.check_requirements()
+
+        # Configure the devbox.
+        Installer.configure_devbox()
+
+        # Print a message.
+        message  = "Configured for use. "
+        message += "Use '" + Settings.program + " up' to boot the VM."
+        Utilities.log(message)
+
+
+    @staticmethod
+    def check_requirements():
+        """ 
+        Checks for required software on the user's system.
+
+        """
+
+        # Which programs are reqired?
+        required_programs = ['virtualbox', 'vagrant']
+
+        # Make sure the required programs are installed.
+        for program in required_programs:
+
+            # What's the path to the executable?
+            try:
+                subprocess.check_output(['which', program])
+            except subprocess.CalledProcessError:
+                message = "Please install " + program + " before proceeding."
+                Utilities.log(message)
+                exit(1)
+ 
+
+    @staticmethod
+    def configure_devbox():
+        """
+        Create a .devbox folder and copy config files into it.
+
+        """
+
+        # Does a devbox folder already exist?
+        is_present = os.path.isdir(Settings.devbox_folder)
+
+        # If so, alert the user and exit.
+        if is_present:
+            message1  = "This folder is already initialized."
+            message2  = "To re-initialize, "
+            message2 += "run '" + Settings.program + " destroy' first."
+            Utilities.log(message1)
+            Utilities.log(message2)
+            exit(1)
+
+        # Create the config folder in the current directory.
+        Utilities.create_folder(Settings.devbox_folder)
+
+        # Copy config files.
+        source_folder = Settings.source_config
+        dest_folder = Settings.config_folder
+        folder_copied = Utilities.copy_folder(source_folder, dest_folder)
+
+        # Report any errors.
+        if not folder_copied:
+            Utilities.log("Could not copy config files.")
+            exit(1)
+
+        # Copy the Vagrantfile to the root of the devbox folder.
+        source_file = Settings.config_folder + "/vagrant/Vagrantfile"
+        dest_location = Settings.devbox_folder
+        file_copied = Utilities.copy_file(source_file, dest_location)
+
+        # Report any errors.
+        if not file_copied:
+            Utilities.log("Could not copy Vagrantfile.")
+            exit(1)
+
+
+class Vagrant:
+    """
+    Handles vagrant commands.
+
+    """
+
+    @staticmethod
+    def stop_if_not_init():
+        """
+        Checks if the folder is initialized for vagrant.
+        Stops the program if not.
+
+        """
+
+        # Does a devbox folder exist?
+        is_present = os.path.isdir(Settings.devbox_folder)
+
+        # If not, alert the user and exit.
+        if not is_present:
+            message  = "This folder is not initialized. "
+            message += "Run '" + Settings.program + " init' first."
+            Utilities.log(message)
+            exit(1)
+
+
+    @staticmethod
+    def up():
+        """
+        Boots the VM up.
+
+        """
+
+        # Stop the program if no init has occurred.
+        Vagrant.stop_if_not_init()
+
+        # Run vagrant up from the vagrant folder.
+        command = ["vagrant", "up"]
+        cwd = Settings.devbox_folder
+        try:
+            result = subprocess.check_call(command, cwd=cwd)
+        except subprocess.CalledProcessError:
+            Utilities.log("Could not run 'vagrant up'.")
+            exit(1)
+ 
+
+    @staticmethod
+    def down():
+        """
+        Boots the VM down.
+
+        """
+
+        # Stop the program if no init has occurred.
+        Vagrant.stop_if_not_init()
+
+        # Run vagrant halt from the vagrant folder.
+        command = ["vagrant", "halt"]
+        cwd = Settings.devbox_folder
+        try:
+            result = subprocess.check_call(command, cwd=cwd)
+        except subprocess.CalledProcessError:
+            Utilities.log("Could not run 'vagrant halt'.")
+            exit(1)
+
+
+    @staticmethod
+    def destroy():
+        """
+        Destroys the VM altogether.
+
+        """
+
+        # Stop the program if no init has occurred.
+        Vagrant.stop_if_not_init()
+
+        # Run vagrant destroy from the vagrant folder.
+        command = ["vagrant", "destroy"]
+        cwd = Settings.devbox_folder
+        try:
+            result = subprocess.check_call(command, cwd=cwd)
+        except subprocess.CalledProcessError:
+            Utilities.log("Could not run 'vagrant destroy'.")
+            exit(1)
+
+
+    @staticmethod
+    def provision():
+        """
+        Re-provision the VM.
+
+        """
+
+        # Stop the program if no init has occurred.
+        Vagrant.stop_if_not_init()
+
+        # Run vagrant provision from the vagrant folder.
+        command = ["vagrant", "provision"]
+        cwd = Settings.devbox_folder
+        try:
+            result = subprocess.check_call(command, cwd=cwd)
+        except subprocess.CalledProcessError:
+            Utilities.log("Could not run 'vagrant provision'.")
+            exit(1)
+
+
+    @staticmethod
+    def ssh():
+        """
+        SSH into the VM.
+
+        """
+
+        # Stop the program if no init has occurred.
+        Vagrant.stop_if_not_init()
+
+        # Run vagrant ssh from the vagrant folder.
+        command = ["vagrant", "ssh"]
+        cwd = Settings.devbox_folder
+        try:
+            result = subprocess.check_call(command, cwd=cwd)
+        except subprocess.CalledProcessError:
+            Utilities.log("Could not run 'vagrant ssh'.")
+            exit(1)
+
+
+    @staticmethod
+    def run_script_on_vm(script, arguments=None):
+        """
+        Runs a bash script on the VM.
+        It uses the `vagrant ssh -c "<path to script>"` command.
+
+        """
+
+        # Stop the program if no init has occurred.
+        Vagrant.stop_if_not_init()
+
+        # What is the path to the script files on the VM?
+        path = "sudo -u vagrant bash " + Settings.scripts_on_vm + script
+
+        # Are there any arguments?
+        if arguments:
+            path = path + ' ' + arguments
+
+        # Run vagrant ssh -c "<commands>" from the vagrant folder.
+        command = ['vagrant', 'ssh', '-c', path]
+        cwd = Settings.devbox_folder
+        try:
+            result = subprocess.check_call(command, cwd=cwd)
+        except subprocess.CalledProcessError:
+            Utilities.log("Running " + script + " on the VM failed.")
+            exit(1)
+
+
+    @staticmethod
+    def run_command_on_vm(command):
+        """
+        Runs a command on the VM.
+        It uses `vagrant ssh -c "<command>"` to do this.
+
+        """
+
+        # Stop the program if no init has occurred.
+        Vagrant.stop_if_not_init()
+
+        # Run vagrant ssh -c "<commands>" from the vagrant folder.
+        full_command = ['vagrant', 'ssh', '-c', command]
+        cwd = Settings.devbox_folder
+        try:
+            result = subprocess.check_call(full_command, cwd=cwd)
+        except subprocess.CalledProcessError:
+            Utilities.log("Running " + command + " on the VM failed.")
+            exit(1)
+
+
+    @staticmethod
+    def run_command_through_tunnel(command):
+        """
+        Opens an SSH tunnel to the VM, then runs a command on the VM.
+
+        """
+
+        # Stop the program if no init has occurred.
+        Vagrant.stop_if_not_init()
+
+        # We want to prepend the cabal path to the beginning
+        # of any commands we run through the tunnel. That way,
+        # they know about things installed by cabal (e.g., yesod).
+        command = 'export PATH=/home/vagrant/.cabal/bin:$PATH; ' + command
+
+        # Now build the full command that creates an ssh tunnel 
+        # to the vm.
+        full_command = [
+            'ssh',
+            '-p 2222',
+            '-o StrictHostKeyChecking=no',
+            '-o UserKnownHostsFile=/dev/null',
+            # '-i ' + Settings.vagrant_key,
+            'vagrant@localhost',
+            '-L 8188:localhost:8189',
+            command,
+        ]
+        # print full_command 
+        # exit(1)
+        try:
+            result = subprocess.call(full_command)
+        except subprocess.CalledProcessError:
+            Utilities.log("Running " + command + " through a tunnel failed.")
+            exit(1)
+
+
+
+def main():
+    """
+    The main entry point into the program.
+
+    """
+
+    # Get a parser to parse command line arguments.
+    parser = argparse.ArgumentParser(version="%(prog)s " + Settings.version)
+
+    # Add a first positional argument.
+    parser.add_argument("init", help="Initialize a VM.", nargs="?")
+
+    # Add some further posiional arguments,
+    # just so they appear in the usage/help screen.
+    parser.add_argument("up", help="Boot up the VM.", nargs="?")
+    parser.add_argument("down", help="Shut down the VM.", nargs="?")
+    parser.add_argument("ssh", help="SSH into the VM.", nargs="?")
+    parser.add_argument("provision", help="Re-provision the VM.", nargs="?")
+    parser.add_argument("destroy", help="Destroy the VM.", nargs="?")
+    parser.add_argument("create <project>", 
+        help="Create a project named <project> on the VM.", nargs="?")
+    parser.add_argument("devel <project>",
+        help="Run <project> on http://localhost:3000.", nargs="?")
+
+    # Now parse the arguments.
+    arguments = parser.parse_args()
+
+    # Remember: the first command is named "init". 
+    # So, was the first command (i.e, arguments.init) "init"?
+    if arguments.init == 'init':
+        Installer.init()
+
+    # Was the command "up"?
+    elif arguments.init == 'up':
+        Vagrant.up()
+
+    # Was the command "down"?
+    elif arguments.init == "down":
+        Vagrant.down()
+
+    # Was the command "ssh"?
+    elif arguments.init == "ssh":
+        Vagrant.ssh()
+
+    # Was the command "provision"?
+    elif arguments.init == "provision":
+        Vagrant.provision()
+
+    # Was the command "destroy"?
+    elif arguments.init == "destroy":
+        Vagrant.destroy()
+
+    # Was the command "create"?
+    elif arguments.init == "create":
+        project = arguments.up 
+        # TO DO: Make sure 'project' is all lower cased,
+        # with no spaces. yesod init won't work otherwise.
+        # Also, make sure it was provided in the first place.
+        Vagrant.run_script_on_vm('startproject', project)
+
+    # Was the command "devel"?
+    elif arguments.init == "devel":
+        project = arguments.up 
+        command  = '/home/vagrant/code/.devbox/config/bash/startdevserver '
+        command += project
+        Vagrant.run_command_through_tunnel(command)
+
+    # Was the command "heroku"?
+    elif arguments.init == "heroku":
+
+        # The first command listed is called arguments.init.
+        # The next is called "up" (i.e., arguments.up). 
+        # So, let's get the value of that:
+        option = arguments.up
+
+        # Was it "setup" (i.e, did the user type "yoh heroku setup")?
+        if option == "setup":
+
+            # Get user's credentials.
+            Heroku.ask_users_for_credentials()
+
+            # Run the "installheroku" script on the VM.
+            # Vagrant.run_script_on_vm('installheroku')
+
+        # Was it "keys" (i.e., did the user type "yoh heroku keys")?
+        elif option == "keys":
+            command1 = "printf %s%s%s%s $'jt.paasch@gmail.com' $'\n' $'jofthet9' $'\n' | "
+            command2 = '/home/vagrant/code/.devbox/config/bash/installherokukeys'
+            Vagrant.run_command_through_tunnel(command1 + command2)
+
+        # Otherwise, we don't understand the commands. 
+        # So, just print the help message.
+        else:
+            parser.print_help()
+
+    # If we don't know what to do with what the user typed,
+    # just print the help message.
+    else:
+        parser.print_help()
+
+    # Exit cleanly.
+    exit(0)
+
+
+# Run the main() function if this is executed as a program.
+if __name__ == "__main__":
+    main()
+
+
