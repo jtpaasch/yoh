@@ -15,7 +15,7 @@
 
 
 import os
-import argparse
+import sys
 import subprocess
 import shutil
 import getpass
@@ -204,6 +204,19 @@ class Installer:
 
         """
 
+        # Make sure this folder isn't already initialized.
+        # Does a devbox folder exist?
+        devbox = Installer.find_devbox()
+
+        # If there is a devbox, alert the user and exit.
+        if devbox:
+            message1  = "This folder is already initialized."
+            message2  = "To re-initialize, "
+            message2 += "run '" + Settings.program + " destroy' first."
+            Utilities.log(message1)
+            Utilities.log(message2)
+            exit(1)
+
         # Check that all required programs are installed.
         Installer.check_requirements()
 
@@ -214,6 +227,52 @@ class Installer:
         message  = "Configured for use. "
         message += "Use '" + Settings.program + " up' to boot the VM."
         Utilities.log(message)
+
+
+    @staticmethod
+    def find_devbox(path = None):
+        """
+        This method recursively Walks the directory tree up, 
+        until it finds a devbox folder. If one is found, it 
+        returns the path. If none is found, it returns None.
+
+        """
+
+        # If no path is specified, use the current working directory.
+        if path is None:
+            path = os.getcwd()
+
+        # What is the full path of the devbox folder (if it existed here)?
+        if path == '/':
+            devbox = path + Settings.devbox_folder
+        else:
+            devbox = path + os.sep + Settings.devbox_folder
+
+        # Does it exist here?
+        if os.path.isdir(devbox):
+            return path
+
+        else:
+        
+            # What's the parent folder?
+            parent_folder = os.path.dirname(path)
+
+            # If we're at the root, the parent will also be the root.
+            # We don't need to proceed at this point. 
+            # We haven't found the devbox folder, and we can't 
+            # go up any further in the directory tree.
+            if path == parent_folder:
+                return None
+
+            # Is it a real directory? If so, call this function on it again
+            # to see if a devbox folder exists in it.
+            if os.path.isdir(parent_folder):
+                return Installer.find_devbox(parent_folder)
+
+            # If there is no parent folder, we're at the root of the 
+            # directory tree, so we haven't found a devbox folder.
+            else:
+                return None
 
 
     @staticmethod
@@ -296,14 +355,18 @@ class Vagrant:
         """
 
         # Does a devbox folder exist?
-        is_present = os.path.isdir(Settings.devbox_folder)
+        devbox = Installer.find_devbox()
 
-        # If not, alert the user and exit.
-        if not is_present:
+        # If no devbox, alert the user and exit.
+        if devbox is None:
             message  = "This folder is not initialized. "
             message += "Run '" + Settings.program + " init' first."
             Utilities.log(message)
             exit(1)
+
+        # Otherwise, save the devbox folder.
+        else:
+            Settings.devbox_folder = devbox
 
 
     @staticmethod
@@ -491,6 +554,42 @@ class Vagrant:
             exit(1)
 
 
+class Dispatcher:
+    """
+    This method dispatches commands from the command line 
+    to the appropriate classes/modules to handle them.
+
+    """
+
+    @staticmethod
+    def usage():
+        """
+        Prints the usage/instructions for the program.
+
+        """
+
+        print ""
+        print "Yoh:"
+        print "- Builds a Haskell Yesod site on a VM, "
+        print "  and deploy it to Heroku."
+        print ""
+        print "Usage: "
+        print "- yoh [command]"
+        print ""
+        print "Commands:"
+        print "- yoh up              Boot up the VM"
+        print "- yoh down            Boot down the VM"
+        print "- yoh ssh             Log on to the VM (via SSH)"
+        print "- yoh provision       Re-provision the VM"
+        print "- yoh destroy         Delete/remove the VM"
+        print ""
+        print "- yoh create <site>   Create a Yesod site (named <site>) on the VM"
+        print "- yoh run <site>      Run the site (named <site>) on the VM's dev server"
+        print ""
+        print "- yoh setup heroku    Make the site Heroku-ready"
+        print "- yoh deploy heroku   Deploy the site to Heroku"
+        print ""
+
 
 def main():
     """
@@ -498,76 +597,67 @@ def main():
 
     """
 
-    # Get a parser to parse command line arguments.
-    parser = argparse.ArgumentParser(version="%(prog)s " + Settings.version)
+    # Get the command line arguments passed to this program.
+    # We can use the old classic "sys.argv" to get them.
+    arguments = sys.argv
 
-    # Add a first positional argument.
-    parser.add_argument("init", help="Initialize a VM.", nargs="?")
+    # If there are no arguments, print the program's usage and exit.
+    if len(arguments) < 2:
+        Dispatcher.usage()
+        exit(0)
 
-    # Add some further posiional arguments,
-    # just so they appear in the usage/help screen.
-    parser.add_argument("up", help="Boot up the VM.", nargs="?")
-    parser.add_argument("down", help="Shut down the VM.", nargs="?")
-    parser.add_argument("ssh", help="SSH into the VM.", nargs="?")
-    parser.add_argument("provision", help="Re-provision the VM.", nargs="?")
-    parser.add_argument("destroy", help="Destroy the VM.", nargs="?")
-    parser.add_argument("create <project>", 
-        help="Create a project named <project> on the VM.", nargs="?")
-    parser.add_argument("devel <project>",
-        help="Run <project> on http://localhost:3000.", nargs="?")
+    # Otherwise, go ahead and get the first argument. Let's call it "command".
+    command = arguments[1]
 
-    # Now parse the arguments.
-    arguments = parser.parse_args()
+    # If there's a second argument, call that the "option".
+    if len(arguments) > 2:
+        option = arguments[2]
 
-    # Remember: the first command is named "init". 
-    # So, was the first command (i.e, arguments.init) "init"?
-    if arguments.init == 'init':
+    # Was the command "init"?
+    if command == 'init':
         Installer.init()
 
     # Was the command "up"?
-    elif arguments.init == 'up':
+    elif command == 'up':
         Vagrant.up()
 
     # Was the command "down"?
-    elif arguments.init == "down":
+    elif command == "down":
         Vagrant.down()
 
     # Was the command "ssh"?
-    elif arguments.init == "ssh":
+    elif command == "ssh":
         Vagrant.ssh()
 
     # Was the command "provision"?
-    elif arguments.init == "provision":
+    elif command == "provision":
         Vagrant.provision()
 
     # Was the command "destroy"?
-    elif arguments.init == "destroy":
+    elif command == "destroy":
         Vagrant.destroy()
 
     # Was the command "create"?
-    elif arguments.init == "create":
-        project = arguments.up 
+    elif command == "create":
+        project = option
         # TO DO: Make sure 'project' is all lower cased,
         # with no spaces. yesod init won't work otherwise.
         # Also, make sure it was provided in the first place.
         Vagrant.run_script_on_vm('startproject', project)
 
-    # Was the command "devel"?
-    elif arguments.init == "devel":
-        project = arguments.up 
+    # Was the command "run"?
+    elif command == "run":
+        project = option 
         command  = '/home/vagrant/code/.devbox/config/bash/startdevserver '
         command += project
         Vagrant.run_command_through_tunnel(command)
 
     # Was the command "heroku"?
-    elif arguments.init == "heroku":
+    elif command == "heroku":
 
-        # The first command listed is called arguments.init.
-        # The next is called "up" (i.e., arguments.up). 
-        # So, let's get the value of that:
-        option = arguments.up
+        # To do: make sure there is an option.
 
-        # Was it "setup" (i.e, did the user type "yoh heroku setup")?
+        # Was the option "setup" (i.e, did the user type "yoh heroku setup")?
         if option == "setup":
 
             # Get user's credentials.
