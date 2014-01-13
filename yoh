@@ -19,6 +19,7 @@ import sys
 import subprocess
 import shutil
 import getpass
+import re
 from   ConfigParser import SafeConfigParser
 
 
@@ -110,86 +111,23 @@ class Utilities:
         else:
             return True
 
-
-class Heroku:
-    """
-    Handles heroku stuff.
-
-    """
-
-    # We'll store the config parser here:
-    config = None
-
-    # We'll store the user's heroku username and password here:
-    username = None
-    password = None
-
-    # Has heroku been configured? Assume false to begin with.
-    configured = False
-
     @staticmethod
-    def setup():
+    def is_word(string):
         """
-        Initialize heroku configuration variables.
-
-        """
-
-        # Stop the program if the folder isn't initialized yet.
-        Vagrant.stop_if_not_init()
-
-        # Get a config parser.
-        Heroku.config = SafeConfigParser()
-
-        # Read the config file.
-        Heroku.config.read(Settings.yoh_config)
-
-        # Is there a heroku section in the config file?
-        if Heroku.config.has_section('heroku'):
-
-            # Has heroku been configured for this project? 
-            ready = Heroku.config.getboolean('heroku', 'configured')
-            Heroku.configured = ready
-
-        # If Heroku is not configured, go ahead and configure it.
-        if not Heroku.configured:
-
-            # Get the user's credentials.
-            Heroku.ask_users_for_credentials()
-
-            # Install heroku on the VM.
-            # arguments = Heroku.username + ' ' + Heroku.password
-            # Vagrant.run_script_on_vm('installheroku', arguments)
-
-
-    @staticmethod
-    def ask_users_for_credentials():
-        """
-        Ask the users for credentials 
-        and store it in the config file. 
+        Is the specified string a word, i.e., does it
+        consist only of letters and numbers, with no spaces?
 
         """
 
-        # Stop the program if the folder isn't initialized yet.
-        Vagrant.stop_if_not_init()
+        # Use a regular expression to find the correct pattern. 
+        matches = re.match(r'^[a-zA-Z0-9]+$', string)
 
-        # Get a config parser.
-        Heroku.config = SafeConfigParser()
-
-        # Ask for the user's heroku username.
-        Heroku.username = raw_input("Enter your heroku username: ")
-
-        # Ask for the user's heroku password.
-        Heroku.password = getpass.getpass("Enter your heroku password: ")
-
-        # Save these as config values.
-        Heroku.config.set('heroku', 'username', Heroku.username)
-        Heroku.config.set('heroku', 'password', Heroku.password)
-
-        # Open the config file and save the new data to it.
-        config_file = open(Settings.yoh_config, 'w')
-        Heroku.config.write(config_file)
-        config_file.close()
-
+        # Is there a match?
+        if matches:
+            return True
+        else:
+            return False
+        
 
 class Installer:
     """
@@ -250,7 +188,7 @@ class Installer:
 
         # Does it exist here?
         if os.path.isdir(devbox):
-            return path
+            return devbox
 
         else:
         
@@ -382,6 +320,7 @@ class Vagrant:
         # Run vagrant up from the vagrant folder.
         command = ["vagrant", "up"]
         cwd = Settings.devbox_folder
+
         try:
             result = subprocess.check_call(command, cwd=cwd)
         except subprocess.CalledProcessError:
@@ -487,6 +426,9 @@ class Vagrant:
         if arguments:
             path = path + ' ' + arguments
 
+        # Make sure the cabal path is in the environment's PATH.
+        path = "export PATH=/home/vagrant/.cabal/bin:$PATH; " + path
+
         # Run vagrant ssh -c "<commands>" from the vagrant folder.
         command = ['vagrant', 'ssh', '-c', path]
         cwd = Settings.devbox_folder
@@ -508,6 +450,9 @@ class Vagrant:
         # Stop the program if no init has occurred.
         Vagrant.stop_if_not_init()
 
+        # Make sure the cabal path is in the environment's PATH.
+        command = "export PATH=/home/vagrant/.cabal/bin:$PATH; " + path
+
         # Run vagrant ssh -c "<commands>" from the vagrant folder.
         full_command = ['vagrant', 'ssh', '-c', command]
         cwd = Settings.devbox_folder
@@ -518,45 +463,120 @@ class Vagrant:
             exit(1)
 
 
+class Yesod:
+    """
+    This class handles Yesod-specific activities, like generating 
+    a scaffolded site or running the Yesod dev web server.
+
+    """
+
     @staticmethod
-    def run_command_through_tunnel(command):
+    def create(site):
         """
-        Opens an SSH tunnel to the VM, then runs a command on the VM.
+        This creates a fully scaffolded Yesod site/project.
 
         """
 
-        # Stop the program if no init has occurred.
+        # Run the "startproject" script on the VM. 
+        # That will create the site for you.
+        Vagrant.run_script_on_vm('startproject', site)
+
+    @staticmethod
+
+    def run(site):
+        """
+        This runs the specified site on the development server.
+
+        """
+
+        # Run the "startdevserver" script on the VM.
+        # That will start the Yesod development server.
+        Vagrant.run_script_on_vm('startdevserver', site)
+
+
+class Heroku:
+    """
+    Handles heroku stuff.
+
+    """
+
+    # We'll store the config parser here:
+    config = None
+
+    # We'll store the user's heroku username and password here:
+    username = None
+    password = None
+
+    @staticmethod
+    def setup():
+        """
+        Initialize heroku configuration variables.
+
+        """
+
+        # Stop the program if the folder isn't initialized yet.
         Vagrant.stop_if_not_init()
 
-        # We want to prepend the cabal path to the beginning
-        # of any commands we run through the tunnel. That way,
-        # they know about things installed by cabal (e.g., yesod).
-        command = 'export PATH=/home/vagrant/.cabal/bin:$PATH; ' + command
+        # Get a config parser.
+        Heroku.config = SafeConfigParser()
 
-        # Now build the full command that creates an ssh tunnel 
-        # to the vm.
-        full_command = [
-            'ssh',
-            '-p 2222',
-            '-o StrictHostKeyChecking=no',
-            '-o UserKnownHostsFile=/dev/null',
-            # '-i ' + Settings.vagrant_key,
-            'vagrant@localhost',
-            '-L 8188:localhost:8189',
-            command,
-        ]
-        # print full_command 
-        # exit(1)
-        try:
-            result = subprocess.call(full_command)
-        except subprocess.CalledProcessError:
-            Utilities.log("Running " + command + " through a tunnel failed.")
-            exit(1)
+        # Read the config file.
+        Heroku.config.read(Settings.yoh_config)
+
+        # Is there a heroku section in the config file?
+        if Heroku.config.has_section('heroku'):
+
+            # Has heroku been configured for this project? 
+            ready = Heroku.config.getboolean('heroku', 'configured')
+            Heroku.configured = ready
+
+        # If Heroku is not configured, go ahead and configure it.
+        if not Heroku.configured:
+
+            # Get the user's credentials.
+            Heroku.ask_users_for_credentials()
+
+            # Install heroku on the VM.
+            # arguments = Heroku.username + ' ' + Heroku.password
+            # Vagrant.run_script_on_vm('installheroku', arguments)
+
+
+    @staticmethod
+    def ask_users_for_credentials():
+        """
+        Ask the users for credentials 
+        and store it in the config file. 
+
+        """
+
+        # Stop the program if the folder isn't initialized yet.
+        Vagrant.stop_if_not_init()
+
+        # Get a config parser.
+        Heroku.config = SafeConfigParser()
+
+        # Read the config file.
+        Heroku.config.read(Settings.yoh_config)
+
+        # Ask for the user's heroku username.
+        Heroku.username = raw_input("Enter your heroku username: ")
+
+        # Ask for the user's heroku password.
+        Heroku.password = getpass.getpass("Enter your heroku password: ")
+
+        # Save these as config values.
+        Heroku.config.set('heroku', 'username', Heroku.username)
+        Heroku.config.set('heroku', 'password', Heroku.password)
+
+        # Open the config file and save the new data to it.
+        config_file = open(Settings.yoh_config, 'w')
+        Heroku.config.write(config_file)
+        config_file.close()
 
 
 class Dispatcher:
     """
-    This method dispatches commands from the command line 
+    This class dispatches commands from the command line 
     to the appropriate classes/modules to handle them.
 
     """
@@ -571,12 +591,13 @@ class Dispatcher:
         print ""
         print "Yoh:"
         print "- Builds a Haskell Yesod site on a VM, "
-        print "  and deploy it to Heroku."
+        print "  and deploys it to Heroku."
         print ""
         print "Usage: "
         print "- yoh [command]"
         print ""
         print "Commands:"
+        print "- yoh init            Initialize the VM"
         print "- yoh up              Boot up the VM"
         print "- yoh down            Boot down the VM"
         print "- yoh ssh             Log on to the VM (via SSH)"
@@ -589,6 +610,86 @@ class Dispatcher:
         print "- yoh setup heroku    Make the site Heroku-ready"
         print "- yoh deploy heroku   Deploy the site to Heroku"
         print ""
+
+
+    @staticmethod
+    def init():
+        """
+        Initialize a folder so it's ready for a VM.
+        That is, install all the config files needed to boot the VM.
+
+        """
+
+        # Run the Installer's `init` function.
+        Installer.init()
+
+
+    @staticmethod
+    def vagrant(command):
+        """
+        Run a basic vagrant command.
+
+        """
+
+        # Was the command "up"?
+        if command == 'up':
+            Vagrant.up()
+
+        # Was the command "down"?
+        elif command == "down":
+            Vagrant.down()
+
+        # Was the command "ssh"?
+        elif command == "ssh":
+            Vagrant.ssh()
+
+        # Was the command "provision"?
+        elif command == "provision":
+            Vagrant.provision()
+
+        # Was the command "destroy"?
+        elif command == "destroy":
+            Vagrant.destroy()
+
+
+    @staticmethod
+    def create(site):
+        """
+        Create a Yesod site.
+
+        """
+
+        # Make sure the site name is all lowercased,
+        # with no spaces. Yesod requires that.
+        if not Utilities.is_word(site):
+            Utilities.log("Site names must consist of letters and numbers only,")
+            Utilities.log("with no spaces, dashes, or underscores.")
+            Utilities.log("Please choose a valid site name.")
+            exit(1)
+
+        # Create the site.
+        Yesod.create(site)
+
+
+    @staticmethod
+    def run(site):
+        """
+        Run a Yesod site on the development server.
+
+        """
+
+        # Construct the path to the site folder.
+        site_path = os.path.dirname(Settings.devbox_folder) + os.sep + site
+
+        # Make sure there's a scaffolded site that matches the specified name.
+        # We can check simply by checking if a folder by that name exists.
+        if not os.path.isdir(site_path):
+            Utilities.log("There is no site named '" + site + "'.")
+            Utilities.log("Please create it first with the command: yoh create <site>.")
+            exit(1)
+
+        # Run the site on the development server.
+        Yesod.run(site)
 
 
 def main():
@@ -615,72 +716,94 @@ def main():
 
     # Was the command "init"?
     if command == 'init':
-        Installer.init()
+        Dispatcher.init()
 
     # Was the command "up"?
     elif command == 'up':
-        Vagrant.up()
+        Dispatcher.vagrant('up')
 
     # Was the command "down"?
     elif command == "down":
-        Vagrant.down()
+        Dispatcher.vagrant('down')
 
     # Was the command "ssh"?
     elif command == "ssh":
-        Vagrant.ssh()
+        Dispatcher.vagrant('ssh')
 
     # Was the command "provision"?
     elif command == "provision":
-        Vagrant.provision()
+        Dispatcher.vagrant('provision')
 
     # Was the command "destroy"?
     elif command == "destroy":
-        Vagrant.destroy()
+        Dispatcher.vagrant('destroy')
 
-    # Was the command "create"?
+    # Was the command "create <site>"?
     elif command == "create":
-        project = option
-        # TO DO: Make sure 'project' is all lower cased,
-        # with no spaces. yesod init won't work otherwise.
-        # Also, make sure it was provided in the first place.
-        Vagrant.run_script_on_vm('startproject', project)
 
-    # Was the command "run"?
+        # Stop the program if there's no devbox folder.
+        Vagrant.stop_if_not_init()
+
+        # The site name will be the option argument.
+        # Make sure the option argument was given.
+        try:
+            site = option
+        except NameError:
+            Utilities.log("Please specify a site name.")
+            Utilities.log("Usage: yoh create <site>")
+            exit(1)
+
+        # Now we can dispatch the activity.
+        Dispatcher.create(site)
+
+    # Was the command "run <site>"?
     elif command == "run":
-        project = option 
-        command  = '/home/vagrant/code/.devbox/config/bash/startdevserver '
-        command += project
-        Vagrant.run_command_through_tunnel(command)
 
-    # Was the command "heroku"?
-    elif command == "heroku":
+        # Stop the program if there's no devbox folder.
+        Vagrant.stop_if_not_init()
 
-        # To do: make sure there is an option.
+        # The site name will be the option argument.
+        # Make sure the option argument was given.
+        try:
+            site = option
+        except NameError:
+            Utilities.log("Please specify a site name.")
+            Utilities.log("Usage: yoh run <site>")
+            exit(1)
 
-        # Was the option "setup" (i.e, did the user type "yoh heroku setup")?
-        if option == "setup":
+        # Now we can dispatch the activity.
+        Dispatcher.run(site)
 
-            # Get user's credentials.
-            Heroku.ask_users_for_credentials()
+    # Was the command "setup heroku"?
+    elif command == "setup":
 
-            # Run the "installheroku" script on the VM.
-            # Vagrant.run_script_on_vm('installheroku')
+        # Stop the program if there's no devbox folder.
+        Vagrant.stop_if_not_init()
 
-        # Was it "keys" (i.e., did the user type "yoh heroku keys")?
-        elif option == "keys":
-            command1 = "printf %s%s%s%s $'jt.paasch@gmail.com' $'\n' $'jofthet9' $'\n' | "
-            command2 = '/home/vagrant/code/.devbox/config/bash/installherokukeys'
-            Vagrant.run_command_through_tunnel(command1 + command2)
+        # Get user's credentials.
+        Heroku.ask_users_for_credentials()
 
-        # Otherwise, we don't understand the commands. 
-        # So, just print the help message.
-        else:
-            parser.print_help()
+        # Run the "installheroku" script on the VM.
+        # Vagrant.run_script_on_vm('installheroku')
+
+        # Install heroku keys on the VM.
+        # command1 = "printf %s%s%s%s $'jt.paasch@gmail.com' $'\n' $'jofthet9' $'\n' | "
+        # command2 = '/home/vagrant/code/.devbox/config/bash/installherokukeys'
+        # Vagrant.run_command_through_tunnel(command1 + command2)
+
+    # Was the command "deploy heroku"?
+    elif command == "deploy":
+
+        # Stop the program if there's no devbox folder.
+        Vagrant.stop_if_not_init()
+
+        Utilities.log("Not implemented...")
+        exit(1)
 
     # If we don't know what to do with what the user typed,
     # just print the help message.
     else:
-        parser.print_help()
+        Dispatcher.usage()
 
     # Exit cleanly.
     exit(0)

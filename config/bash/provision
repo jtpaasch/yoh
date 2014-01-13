@@ -39,7 +39,7 @@ su vagrant -c "cabal update"
 # anything. Instead, it will simply tell you which
 # packages are already installed, and say you need
 # to use --force-reinstalls if you want to alter them.
-su vagrant -c "cabal install yesod-platform --force-reinstalls."
+su vagrant -c "cabal install yesod-platform --force-reinstalls"
 
 # Install yesod-bin (the command line tool for yesod).
 su vagrant -c "cabal install yesod-bin"
