@@ -549,6 +549,27 @@ class Heroku:
 
 
     @staticmethod
+    def stop_if_not_herokufied(site):
+        """
+        Stops the script if the site is NOT herokufied.
+
+        """
+
+        # We can tell if the site has been herokufied if
+        # a Helpers/Heroku.hs file exists, since that file gets 
+        # created during the process of making the site heroku-ready.
+        heroku_file = os.path.dirname(Settings.devbox_folder) + os.sep 
+        heroku_file += site + os.sep + "Helpers" + os.sep + "Heroku.hs"
+        if not Utilities.file_exists(heroku_file):
+            message1 = "This site is not heroku-ready."
+            message2 = "To herokufy it, use: "
+            message2 += Settings.program + " herokufy " + site
+            Utilities.log(message1)
+            Utilities.log(message2)
+            exit(1)
+
+
+    @staticmethod
     def herokufy(site):
         """
         Initialize heroku configuration variables.
@@ -587,6 +608,24 @@ class Heroku:
         Utilities.log("Site '" + site + "' ready to deploy to heroku.")
 
 
+    @staticmethod
+    def deploy(site):
+        """
+        Deploy the specified site to heroku.
+
+        """
+
+        # Stop the program if the folder isn't initialized yet.
+        Vagrant.stop_if_not_init()
+
+        # Stop the program if the site is NOT herokufied.
+        Heroku.stop_if_not_herokufied(site)
+
+        # Now, run the "deployheroku" script on the VM.
+        # That will deploy the site for you.
+        Vagrant.run_script_on_vm("deployheroku", site)
+
+
 
 class Dispatcher:
     """
@@ -611,18 +650,18 @@ class Dispatcher:
         print "- yoh [command]"
         print ""
         print "Commands:"
-        print "- yoh init             Initialize the VM"
-        print "- yoh up               Boot up the VM"
-        print "- yoh down             Boot down the VM"
-        print "- yoh ssh              Log on to the VM (via SSH)"
-        print "- yoh provision        Re-provision the VM"
-        print "- yoh destroy          Delete/remove the VM"
+        print "- yoh init                  Initialize the VM"
+        print "- yoh up                    Boot up the VM"
+        print "- yoh down                  Boot down the VM"
+        print "- yoh ssh                   Log on to the VM (via SSH)"
+        print "- yoh provision             Re-provision the VM"
+        print "- yoh destroy               Delete/remove the VM"
         print ""
-        print "- yoh create <site>    Create a Yesod site (named <site>)"
-        print "- yoh run <site>       Run the site (named <site>)"
+        print "- yoh create <site>         Create a Yesod site (named <site>)"
+        print "- yoh run <site>            Run the site (named <site>)"
         print ""
-        print "- yoh herokufy <site>  Make <site> Heroku-ready"
-        print "- yoh deploy heroku    Deploy the site to Heroku"
+        print "- yoh herokufy <site>       Make <site> Heroku-ready"
+        print "- yoh deploy heroku <site>  Deploy <site> to Heroku"
         print ""
 
 
@@ -723,6 +762,21 @@ class Dispatcher:
         Heroku.herokufy(site)
 
 
+    @staticmethod
+    def deploy_to_heroku(site):
+        """
+        Deploy the site to heroku.
+
+        """
+
+        # Make sure there is a site by this name.
+        Yesod.check_for_site(site)
+
+        # Now deploy the site to heroku.
+        Heroku.deploy(site)
+
+
+
 def main():
     """
     The main entry point into the program.
@@ -744,6 +798,10 @@ def main():
     # If there's a second argument, call that the "option".
     if len(arguments) > 2:
         option = arguments[2]
+
+    # If there's a third argument, call that "option2".
+    if len(arguments) > 3:
+        option2 = arguments[3]
 
     # Was the command "version" or "--version"?
     if command == 'version' or command == '--version':
@@ -827,14 +885,32 @@ def main():
         # Now we can dispatch the activity.
         Dispatcher.herokufy(site)
 
-    # Was the command "deploy heroku"?
+    # Was the command "deploy heroku <site>"?
     elif command == "deploy":
 
         # Stop the program if there's no devbox folder.
         Vagrant.stop_if_not_init()
 
-        Utilities.log("Not implemented...")
-        exit(1)
+        # The option argument must be "heroku".
+        # Make sure the option argument was given.
+        try:
+            heroku = option
+        except NameError:
+            Utilities.log("Please specify the deployment.")
+            Utilities.log("Usage: yoh deploy heroku <site>")
+            exit(1)
+
+        # The second option argument must be a site name.
+        # Make sure the second argument was given.
+        try:
+            site = option2
+        except NameError:
+            Utilities.log("Please specify a site name.")
+            Utilities.log("USage: yoh deploy heroku <site>")
+            exit(1)
+
+        # Now we can dispatch the activity.
+        Dispatcher.deploy_to_heroku(site)
 
     # If we don't know what to do with what the user typed,
     # just print the help message.

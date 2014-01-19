@@ -1,0 +1,49 @@
+#!/bin/bash
+
+############################################################
+#
+#
+#
+#    THE YOH PROJECT
+#    --------------------------------------------------
+#
+#    Copyright 2013 JT Paasch
+#    License MIT <http://opensource.org/licenses/MIT>
+#
+#
+############################################################
+
+
+# Make sure we're in the vagrant user's ~/code folder.
+cd /home/vagrant/code
+
+# Get the first argument given to this script.
+# We assume it is the name of the project.
+PROJECT=$1
+
+# Change into the project directory.
+cd $PROJECT
+
+# Change the 'approot' to an empty string in
+# the site's confi/settings.yml file.
+SETTINGS=config/settings.yml
+sed -i 's/approot: "http:\/\/localhost:3000"/approot: ""/' $SETTINGS
+
+# Create a "deploy" branch.
+git checkout -b deploy
+
+# Generate a Procfile.
+echo 'web: ./' + $PROJECT + ' production -p $PORT' > Procfile
+
+# Add the executable to the repo.
+git add -f dist/build/$PROJECT/$PROJECT
+
+# Make sure to commit the details.
+git add -A
+git commit -m "Prepping for heroku deploy."
+
+# Now push to heroku.
+git push heroku deploy:master
+
+# Exit cleanly.
+exit 0
