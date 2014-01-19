@@ -1,0 +1,77 @@
+#!/bin/bash
+
+############################################################
+#
+#
+#
+#    THE YOH PROJECT
+#    --------------------------------------------------
+#
+#    Copyright 2013 JT Paasch
+#    License MIT <http://opensource.org/licenses/MIT>
+#
+#
+############################################################
+
+
+# The project name will be the first argument.
+PROJECT=$1
+
+# Make sure we're in the project folder.
+cd /home/vagrant/code/$PROJECT
+
+# Make sure the project is under git's version control.
+git init .
+git add .
+git commit -m "Initial commit"
+
+# Create a Helpers folder.
+mkdir Helpers
+
+# Copy the Heroku.hs helper into our project.
+cp /vagrant/config/yesod/Heroku.hs Helpers
+
+# Copy the Application.hs file into our project.
+# This will overwrite the current Application.hs.
+cp /vagrant/config/yesod/Application.hs .
+
+# Remove "Helpers.Heroku" from the list of library exposed-modules
+# in the .cabal file (if it exists -- this prevents duplicates).
+sed -i '/                     Helpers.Heroku/d' $PROJECT.cabal
+
+# Now add "Helpers.Heroku" to the list of library exposed-modules
+# in the .cabal file:
+sed -i '/                     Handler.Home/a \
+                     Helpers.Heroku' $PROJECT.cabal 
+
+# Remove "heroku" from the list of library build-depends
+# in the .cabal file (if it exists -- this prevents duplicates).
+sed -i '/                 , heroku/d' $PROJECT.cabal
+
+# Add "heroku" to the list of library build-depends
+# in the .cabal file.
+sed -i '/                 , wai-logger                    >= [0-9].[0-9]        && < [0-9].[0-9]/a \
+                 , heroku' $PROJECT.cabal
+
+# Remove the production database entry in config/postgresql.yml.
+sed -i '/Production:/,$d' config/postgresql.yml
+
+# Convert the project to a heroku app, using the haskell buildpack.
+/usr/local/heroku/bin/heroku create --buildpack=https://github.com/puffnfresh/heroku-buildpack-haskell
+
+# Add the postgres heroku add-on, noting what it spits out.
+POSTGRES=`/usr/local/heroku/bin/heroku addons:add heroku-postgresql:dev`
+echo "Postgres is: $POSTGRES"
+
+# Find the database URL in the output.
+DB=`echo $POSTGRES | grep -o 'HEROKU_POSTGRESQL_.*_URL'`
+echo "Database is: $DB"
+
+# Promote it.
+/usr/local/heroku/bin/heroku pg:promote $DB
+
+# Rebuild the site.
+cabal install
+
+# Exit cleanly.
+exit 0

@@ -16,16 +16,26 @@
 
 # Print a message.
 echo "Installing..."
-echo "-- install yoh /usr/local/bin"
+echo "-- install yoh in /usr/local/bin"
 sudo install yoh /usr/local/bin
 
 # Create a .yoh directory in the home folder,
 # If it doesn't exist already.
 if [ ! -d $HOME/.yoh ]; then
-    echo "-- copying config to $HOME/.yoh...";
     mkdir $HOME/.yoh
 fi
-sudo cp -r config $HOME/.yoh/
-echo "-- done"
 
+# Now delete it and recreate it.
+rm -rf $HOME/.yoh
+mkdir $HOME/.yoh
+
+# Copy all config files to that directory.
+echo "-- copying config to $HOME/.yoh";
+sudo cp -r config $HOME/.yoh/
+
+# Report that we're done.
+echo "-- done"
+echo "-- type 'yoh' to see options"
+
+# Exit cleanly.
 exit 0

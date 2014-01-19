@@ -1,6 +1,21 @@
 #!/bin/bash
 
-# Add the keys.
-sudo -u vagrant heroku keys:add
+############################################################
+#
+#
+#
+#    THE YOH PROJECT
+#    --------------------------------------------------
+#
+#    Copyright 2013 JT Paasch
+#    License MIT <http://opensource.org/licenses/MIT>
+#
+#
+############################################################
 
-# Exit cleanly 0
+
+# Add the keys.
+/usr/local/heroku/bin/heroku keys:add
+
+# Exit cleanly
+exit 0

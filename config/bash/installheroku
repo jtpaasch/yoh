@@ -1,7 +1,21 @@
 #!/bin/bash
 
+############################################################
+#
+#
+#
+#    THE YOH PROJECT
+#    --------------------------------------------------
+#
+#    Copyright 2013 JT Paasch
+#    License MIT <http://opensource.org/licenses/MIT>
+#
+#
+############################################################
+
+
 # Get the heroku toolbelt.
-sudo -u vagrant wget -qO- https://toolbelt.heroku.com/install-ubuntu.sh | sh
+wget -qO- https://toolbelt.heroku.com/install-ubuntu.sh | sh
 
 # Exit cleanly.
 exit 0

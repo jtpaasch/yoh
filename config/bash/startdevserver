@@ -1,5 +1,19 @@
 #!/bin/bash
 
+############################################################
+#
+#
+#
+#    THE YOH PROJECT
+#    --------------------------------------------------
+# 
+#    Copyright 2013 JT Paasch
+#    License MIT <http://opensource.org/licenses/MIT>
+#
+#
+############################################################
+
+
 # Make sure we're in the vagrant user's ~/code folder.
 cd /home/vagrant/code
 

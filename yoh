@@ -20,8 +20,6 @@ import subprocess
 import shutil
 import getpass
 import re
-from   ConfigParser import SafeConfigParser
-
 
 
 class Settings:
@@ -34,14 +32,10 @@ class Settings:
     version = "0.1"
     devbox_folder = ".devbox"
     config_folder = devbox_folder + "/config"
-    yoh_config = config_folder + "/yoh.conf"
 
     user_home = os.path.expanduser("~")
     source_config = user_home + "/.yoh/config"
     scripts_on_vm = "/home/vagrant/code/.devbox/config/bash/"
-
-    vagrant_key = user_home + "/.vagrant.d/insecure_private_key"
-    current_user = getpass.getuser()
 
 
 class Utilities:
@@ -170,7 +164,7 @@ class Installer:
     @staticmethod
     def find_devbox(path = None):
         """
-        This method recursively Walks the directory tree up, 
+        This method recursively walks the directory tree up, 
         until it finds a devbox folder. If one is found, it 
         returns the path. If none is found, it returns None.
 
@@ -471,18 +465,40 @@ class Yesod:
     """
 
     @staticmethod
+    def check_for_site(site):
+        """
+        Makes sure there is a fully scaffolded Yesod site 
+        with the specified name.
+
+        """
+
+        # Construct the path to the site folder.
+        site_path = os.path.dirname(Settings.devbox_folder) + os.sep + site
+
+        # Make sure the folder exists. If there's no folder,
+        # there is no such site. 
+        if not os.path.isdir(site_path):
+            message1 = "There is no site named '" + site + "'."
+            message2 = "Please create it first with the command: "
+            message2 += Settings.program + " create <site>."
+            Utilities.log(message1)
+            Utilities.log(message2)
+            exit(1) 
+
+
+    @staticmethod
     def create(site):
         """
         This creates a fully scaffolded Yesod site/project.
 
         """
 
-        # Run the "startproject" script on the VM. 
+        # Run the "createsite" script on the VM. 
         # That will create the site for you.
-        Vagrant.run_script_on_vm('startproject', site)
+        Vagrant.run_script_on_vm('createsite', site)
+
 
     @staticmethod
-
     def run(site):
         """
         This runs the specified site on the development server.
@@ -500,15 +516,8 @@ class Heroku:
 
     """
 
-    # We'll store the config parser here:
-    config = None
-
-    # We'll store the user's heroku username and password here:
-    username = None
-    password = None
-
     @staticmethod
-    def setup():
+    def herokufy(site):
         """
         Initialize heroku configuration variables.
 
@@ -517,61 +526,31 @@ class Heroku:
         # Stop the program if the folder isn't initialized yet.
         Vagrant.stop_if_not_init()
 
-        # Get a config parser.
-        Heroku.config = SafeConfigParser()
+        # Run the "installheroku" script on the VM.
+        # That will install Heroku on the VM.
+        Vagrant.run_script_on_vm('installheroku')
 
-        # Read the config file.
-        Heroku.config.read(Settings.yoh_config)
+        # Print a message.
+        Utilities.log("")
+        Utilities.log("----")
+        Utilities.log("")
 
-        # Is there a heroku section in the config file?
-        if Heroku.config.has_section('heroku'):
+        # Run the "installherokukeys" script on the VM.
+        # That will add heroku keys on the VM so the user doesn't
+        # need to enter their username/password every time they
+        # need to push to heroku.
+        Vagrant.run_script_on_vm('installherokukeys')
 
-            # Has heroku been configured for this project? 
-            ready = Heroku.config.getboolean('heroku', 'configured')
-            Heroku.configured = ready
+        # Run the "herokufysite" script on the VM.
+        # That will make the site heroku-ready.
+        Vagrant.run_script_on_vm('herokufy', site)
 
-        # If Heroku is not configured, go ahead and configure it.
-        if not Heroku.configured:
+        # Print a message.
+        Utilities.log("")
+        Utilities.log("----")
+        Utilities.log("")
+        Utilities.log("Site '" + site + "' ready to deploy to heroku.")
 
-            # Get the user's credentials.
-            Heroku.ask_users_for_credentials()
-
-            # Install heroku on the VM.
-            # arguments = Heroku.username + ' ' + Heroku.password
-            # Vagrant.run_script_on_vm('installheroku', arguments)
-
-
-    @staticmethod
-    def ask_users_for_credentials():
-        """
-        Ask the users for credentials 
-        and store it in the config file. 
-
-        """
-
-        # Stop the program if the folder isn't initialized yet.
-        Vagrant.stop_if_not_init()
-
-        # Get a config parser.
-        Heroku.config = SafeConfigParser()
-
-        # Read the config file.
-        Heroku.config.read(Settings.yoh_config)
-
-        # Ask for the user's heroku username.
-        Heroku.username = raw_input("Enter your heroku username: ")
-
-        # Ask for the user's heroku password.
-        Heroku.password = getpass.getpass("Enter your heroku password: ")
-
-        # Save these as config values.
-        Heroku.config.set('heroku', 'username', Heroku.username)
-        Heroku.config.set('heroku', 'password', Heroku.password)
-
-        # Open the config file and save the new data to it.
-        config_file = open(Settings.yoh_config, 'w')
-        Heroku.config.write(config_file)
-        config_file.close()
 
 
 class Dispatcher:
@@ -589,7 +568,7 @@ class Dispatcher:
         """
 
         print ""
-        print "Yoh:"
+        print "Yoh " + Settings.version + ":"
         print "- Builds a Haskell Yesod site on a VM, "
         print "  and deploys it to Heroku."
         print ""
@@ -597,19 +576,29 @@ class Dispatcher:
         print "- yoh [command]"
         print ""
         print "Commands:"
-        print "- yoh init            Initialize the VM"
-        print "- yoh up              Boot up the VM"
-        print "- yoh down            Boot down the VM"
-        print "- yoh ssh             Log on to the VM (via SSH)"
-        print "- yoh provision       Re-provision the VM"
-        print "- yoh destroy         Delete/remove the VM"
+        print "- yoh init             Initialize the VM"
+        print "- yoh up               Boot up the VM"
+        print "- yoh down             Boot down the VM"
+        print "- yoh ssh              Log on to the VM (via SSH)"
+        print "- yoh provision        Re-provision the VM"
+        print "- yoh destroy          Delete/remove the VM"
         print ""
-        print "- yoh create <site>   Create a Yesod site (named <site>) on the VM"
-        print "- yoh run <site>      Run the site (named <site>) on the VM's dev server"
+        print "- yoh create <site>    Create a Yesod site (named <site>)"
+        print "- yoh run <site>       Run the site (named <site>)"
         print ""
-        print "- yoh setup heroku    Make the site Heroku-ready"
-        print "- yoh deploy heroku   Deploy the site to Heroku"
+        print "- yoh herokufy <site>  Make <site> Heroku-ready"
+        print "- yoh deploy heroku    Deploy the site to Heroku"
         print ""
+
+
+    @staticmethod
+    def version():
+        """
+        Prints the version number.
+
+        """
+
+        Utilities.log(Settings.program + " version " + Settings.version)
 
 
     @staticmethod
@@ -662,7 +651,7 @@ class Dispatcher:
         # Make sure the site name is all lowercased,
         # with no spaces. Yesod requires that.
         if not Utilities.is_word(site):
-            Utilities.log("Site names must consist of letters and numbers only,")
+            Utilities.log("Site names must contain letters and numbers only,")
             Utilities.log("with no spaces, dashes, or underscores.")
             Utilities.log("Please choose a valid site name.")
             exit(1)
@@ -678,18 +667,25 @@ class Dispatcher:
 
         """
 
-        # Construct the path to the site folder.
-        site_path = os.path.dirname(Settings.devbox_folder) + os.sep + site
+        # Make sure there is a site by this name.
+        Yesod.check_for_site(site)
 
-        # Make sure there's a scaffolded site that matches the specified name.
-        # We can check simply by checking if a folder by that name exists.
-        if not os.path.isdir(site_path):
-            Utilities.log("There is no site named '" + site + "'.")
-            Utilities.log("Please create it first with the command: yoh create <site>.")
-            exit(1)
-
-        # Run the site on the development server.
+        # Now run the site on the development server.
         Yesod.run(site)
+
+
+    @staticmethod
+    def herokufy(site):
+        """
+        Make a Yesod site heroku-ready.
+
+        """
+
+        # Make sure there is a site by this name.
+        Yesod.check_for_site(site)
+
+        # Now herokufy the site.
+        Heroku.herokufy(site)
 
 
 def main():
@@ -714,8 +710,12 @@ def main():
     if len(arguments) > 2:
         option = arguments[2]
 
+    # Was the command "version" or "--version"?
+    if command == 'version' or command == '--version':
+        Dispatcher.version()
+
     # Was the command "init"?
-    if command == 'init':
+    elif command == 'init':
         Dispatcher.init()
 
     # Was the command "up"?
@@ -774,22 +774,23 @@ def main():
         # Now we can dispatch the activity.
         Dispatcher.run(site)
 
-    # Was the command "setup heroku"?
-    elif command == "setup":
+    # Was the command "herokufy <site>"?
+    elif command == "herokufy":
 
         # Stop the program if there's no devbox folder.
         Vagrant.stop_if_not_init()
 
-        # Get user's credentials.
-        Heroku.ask_users_for_credentials()
+        # The site name must be the option argument.
+        # Make sure the option argument was given.
+        try:
+            site = option
+        except NameError:
+            Utilities.log("Please specify a site name.")
+            Utilities.log("Usage: yoh herokufy <site>")
+            exit(1)
 
-        # Run the "installheroku" script on the VM.
-        # Vagrant.run_script_on_vm('installheroku')
-
-        # Install heroku keys on the VM.
-        # command1 = "printf %s%s%s%s $'jt.paasch@gmail.com' $'\n' $'jofthet9' $'\n' | "
-        # command2 = '/home/vagrant/code/.devbox/config/bash/installherokukeys'
-        # Vagrant.run_command_through_tunnel(command1 + command2)
+        # Now we can dispatch the activity.
+        Dispatcher.herokufy(site)
 
     # Was the command "deploy heroku"?
     elif command == "deploy":
