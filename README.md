@@ -27,18 +27,7 @@ Want to deploy it to heroku? Type:
 
     yoh deploy heroku mysite
 
-That's it. Dead simple.
-
-Why?
-----
-
-This is useful for a number of reasons.
-
-* It keeps all the Haskell and Yesod stuff contained and sandboxed on the VM, so you don't have to clutter up your own system. Don't like it? Just delete the VM.
-* Getting Yesod to work is difficult. Sorry Yesod people, but you don't make it easy for beginners. Yoh lets you use Yesod with no effort.
-* Deploying a Yesod site to heroku is not straightforward either. This makes it easy. 
-* All the configuration that is required to make all of this work is done by scripts that run on the VM. Those scripts serve as documentation, when I forget the details in six months.
-* The whole code/build/deploy process is automated. I don't have to look up "How do I deploy to heroku again?"
+That's it. 
 
 
 Requirements
