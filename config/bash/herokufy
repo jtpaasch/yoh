@@ -57,7 +57,10 @@ sed -i '/                 , wai-logger                    >= [0-9].[0-9]        
 sed -i '/Production:/,$d' config/postgresql.yml
 
 # Convert the project to a heroku app, using the haskell buildpack.
-/usr/local/heroku/bin/heroku create --buildpack=https://github.com/puffnfresh/heroku-buildpack-haskell
+APP=`/usr/local/heroku/bin/heroku create --buildpack=https://github.com/puffnfresh/heroku-buildpack-haskell`
+
+# Find the URL for the new app in the output.
+APP_URL=`echo $APP | grep -o 'http://[a-zA-Z0-9-].*\.herokuapp\.com'`
 
 # Add the postgres heroku add-on, noting what it spits out.
 POSTGRES=`/usr/local/heroku/bin/heroku addons:add heroku-postgresql:dev`
@@ -72,6 +75,15 @@ echo "Database is: $DB"
 
 # Rebuild the site.
 cabal install
+
+# Report the app's URL.
+echo ""
+echo "----"
+echo ""
+echo "Site on Heroku: $APP_URL"
+echo ""
+echo "----"
+echo ""
 
 # Exit cleanly.
 exit 0

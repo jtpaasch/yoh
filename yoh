@@ -105,6 +105,7 @@ class Utilities:
         else:
             return True
 
+
     @staticmethod
     def is_word(string):
         """
@@ -121,7 +122,21 @@ class Utilities:
             return True
         else:
             return False
-        
+
+
+    @staticmethod
+    def file_exists(path):
+        """
+        Checks if a file exists.
+
+        """
+
+        try:
+            with open(path):
+                return True
+        except IOError:
+            return False
+
 
 class Installer:
     """
@@ -480,7 +495,7 @@ class Yesod:
         if not os.path.isdir(site_path):
             message1 = "There is no site named '" + site + "'."
             message2 = "Please create it first with the command: "
-            message2 += Settings.program + " create <site>."
+            message2 += Settings.program + " create " + site
             Utilities.log(message1)
             Utilities.log(message2)
             exit(1) 
@@ -517,6 +532,23 @@ class Heroku:
     """
 
     @staticmethod
+    def stop_if_herokufied(site):
+        """
+        Stops the script if the site is already herokufied.
+
+        """
+
+        # We can tell if the site has been herokufied if
+        # a Helpers/Heroku.hs file exists, since that file gets 
+        # created during the process of making the site heroku-ready.
+        heroku_file = os.path.dirname(Settings.devbox_folder) + os.sep 
+        heroku_file += site + os.sep + "Helpers" + os.sep + "Heroku.hs"
+        if Utilities.file_exists(heroku_file):
+            Utilities.log("Site already ready for heroku.")
+            exit(1)
+
+
+    @staticmethod
     def herokufy(site):
         """
         Initialize heroku configuration variables.
@@ -525,6 +557,9 @@ class Heroku:
 
         # Stop the program if the folder isn't initialized yet.
         Vagrant.stop_if_not_init()
+
+        # Stop the program if the site is already herokufied.
+        Heroku.stop_if_herokufied(site)
 
         # Run the "installheroku" script on the VM.
         # That will install Heroku on the VM.
