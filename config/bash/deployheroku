@@ -29,6 +29,9 @@ cd $PROJECT
 SETTINGS=config/settings.yml
 sed -i 's/approot: "http:\/\/localhost:3000"/approot: ""/' $SETTINGS
 
+# Make a note of the current branch.
+BRANCH=`git rev-parse --abbrev-ref HEAD`
+
 # Create a "deploy" branch.
 git checkout -b deploy
 
@@ -44,6 +47,9 @@ git commit -m "Prepping for heroku deploy."
 
 # Now push to heroku.
 git push heroku deploy:master
+
+# Return to the previous branch.
+git checkout $BRANCH
 
 # Exit cleanly.
 exit 0
