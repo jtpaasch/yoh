@@ -97,7 +97,7 @@ So, for instance, let's create a project called `test1`:
 
     $ yoh create test1
 
-This too will take a while, because Yesod has to install a bunch of packages and libraries for your new site. 
+This too will take a while, because Yesod has to install a bunch of packages and libraries for your new site.
 
 
 Running the website
@@ -117,10 +117,10 @@ If you want to deploy your Yesod site to heroku, first make it heroku-ready with
 
     $ yoh herokufy test1
     
-This will generate all the files that heroku requires before you deploy anything to them.
+This will generate all the files that heroku requires before you deploy anything to their servers.
 
 Once you've herokufied your site, you can deploy it live with `yoh deploy heroku <site>`:
 
     $ yoh deploy heroku test1
     
-When that finishes, you can visit your site at the URL it spits out on the screen.
+When that finishes, it will spit out a URL where your new site lives on the heroku servers. You can visit your shiny new site at that URL.
