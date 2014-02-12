@@ -85,7 +85,7 @@ A few things to note:
 * If it says `[default] Available bridged network interfaces:`, just type `1` and hit `Enter`. That simply tells the VM to use the first internet connection available.
 * It will take a very long time to boot up your VM and install Haskell and Yesod for the first time. DO NOT let your computer go to sleep or turn off the screen while this happens. This will generate errors, and you'll have to delete the VM folder, restart your computer, and start all over. 
 
-Once `yoh up` is complete, you should then have a VM that is up and running, and it has Haskell and Yesod installed it. It's ready to go.
+Once `yoh up` is complete, you should then have a VM that is up and running, and it has Haskell and Yesod installed on it. It's ready to go.
 
 
 Creating a Yesod Website
