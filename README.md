@@ -83,9 +83,9 @@ The first time you run this command, it will take a long time. It will download 
 
 A few things to note:
 * If it says `[default] Available bridged network interfaces:`, just type `1` and hit `Enter`. That simply tells the VM to use the first internet connection available.
-* It will take a very long time to boot up your VM and install Haskell and Yesod for the first time. DO NOT let your computer go to sleep or turn off the screen while this happens. This will generate errors, and you'll hae to delete the VM folder, restart your computer, and start all over. 
+* It will take a very long time to boot up your VM and install Haskell and Yesod for the first time. DO NOT let your computer go to sleep or turn off the screen while this happens. This will generate errors, and you'll have to delete the VM folder, restart your computer, and start all over. 
 
-Once `yoh up` is complete, you should then have a VM that is up and running, and it has Haskell and Yesod installed it. It's ready to go.
+Once `yoh up` is complete, you should then have a VM that is up and running, and it has Haskell and Yesod installed on it. It's ready to go.
 
 
 Creating a Yesod Website
@@ -97,7 +97,7 @@ So, for instance, let's create a project called `test1`:
 
     $ yoh create test1
 
-This too will take a while, because Yesod has to install a bunch of packages and libraries for your new site. 
+This too will take a while, because Yesod has to install a bunch of packages and libraries for your new site.
 
 
 Running the website
@@ -117,10 +117,10 @@ If you want to deploy your Yesod site to heroku, first make it heroku-ready with
 
     $ yoh herokufy test1
     
-This will generate all the files that heroku requires before you deploy anything to them.
+This will generate all the files that heroku requires before you deploy anything to their servers.
 
 Once you've herokufied your site, you can deploy it live with `yoh deploy heroku <site>`:
 
     $ yoh deploy heroku test1
     
-When that finishes, you can visit your site at the URL it spits out on the screen.
+When that finishes, it will spit out a URL where your new site lives on the heroku servers. You can visit your shiny new site at that URL.
